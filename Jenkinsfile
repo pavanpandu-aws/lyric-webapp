@@ -8,7 +8,7 @@ pipeline {
         ECS_CLUSTER = "demo_cluster"
         ECS_SERVICE = "demo_service"
         ECS_TASK_DEFINITION = "demo_task_definition"
-        IMAGE_TAG = "latest"   change this to your desired tag
+        IMAGE_TAG = "latest"
     }
 
     stages {
