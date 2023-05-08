@@ -43,16 +43,24 @@ pipeline {
              steps {
                  withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY', credentialsId: 'my-aws-credentials']]) {
                      script {
-                        def latestImage = sh(returnStdout: true, script: "aws ecr describe-images --repository-name $ECR_REPOSITORY --region $AWS_REGION --query 'sort_by(imageDetails,& imagePushedAt)[-1].imageTags[0]' --output text").trim()
-                        def taskDefJson = sh(returnStdout: true, script: "aws ecs describe-task-definition --task-definition $ECS_TASK_DEFINITION --region $AWS_REGION")
-                        def taskDef = readJSON(text: taskDefJson)
-                        taskDef.containerDefinitions.each { it.image = "$ECR_REGISTRY/$ECR_REPOSITORY:$latestImage" }
-                        echo "Updated Task Definition: ${taskDef}"
-                        def newTaskDefJson = sh(returnStdout: true, script: 'cat /var/lib/jenkins/workspace/web-app/newTaskDef.json | jq .').trim()
-                        echo "${newTaskDefJson}"
-                        sh "aws ecs register-task-definition --cli-input-json \"${newTaskDefJson}\" --region $AWS_REGION"
-                        sh "aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --task-definition $ECS_TASK_DEFINITION --region $AWS_REGION"
+                        try {
+                            def latestImage = sh(returnStdout: true, script: "aws ecr describe-images --repository-name $ECR_REPOSITORY --region $AWS_REGION --query 'sort_by(imageDetails,& imagePushedAt)[-1].imageTags[0]' --output text").trim()
+                            def taskDefJson = sh(returnStdout: true, script: "aws ecs describe-task-definition --task-definition $ECS_TASK_DEFINITION --region $AWS_REGION")
+                            def taskDef = readJSON(text: taskDefJson)
+                            taskDef.containerDefinitions.each { it.image = "$ECR_REGISTRY/$ECR_REPOSITORY:$latestImage" }
+                            echo "Updated Task Definition: ${taskDef}"
+                            def newTaskDefJson = sh(returnStdout: true, script: 'cat /var/lib/jenkins/workspace/web-app/newTaskDef.json | jq .').trim()
+                            echo "${newTaskDefJson}"
+                            sh """
+                                aws ecs register-task-definition --cli-input-json "${newTaskDefJson}"
+                                aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --task-definition $ECS_TASK_DEFINITION --region $AWS_REGION
+                            """
+                        } catch (err) {
+                            echo "Error: ${err}"
+                            currentBuild.result = 'FAILURE'
+                        }
                     }
+
                  }
              }
         }
