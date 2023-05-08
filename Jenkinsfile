@@ -47,6 +47,7 @@ pipeline {
                         def taskDefJson = sh(returnStdout: true, script: "aws ecs describe-task-definition --task-definition $ECS_TASK_DEFINITION --region $AWS_REGION")
                         def taskDef = readJSON(text: taskDefJson)
                         taskDef.containerDefinitions.each { it.image = "$ECR_REGISTRY/$ECR_REPOSITORY:$latestImage" }
+                        echo "Updated Task Definition: ${taskDef}"
                         def newTaskDefJson = writeJSON(taskDef)
                         sh "aws ecs register-task-definition --cli-input-json '${newTaskDefJson}' --region $AWS_REGION"
                         sh "aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --task-definition $ECS_TASK_DEFINITION --region $AWS_REGION"
