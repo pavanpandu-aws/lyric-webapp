@@ -42,17 +42,13 @@ pipeline {
          stage('Update ECS Service') {
              steps {
                  withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY', credentialsId: 'my-aws-credentials']]) {
-                    script {
+                   script {
                         def latestImage = sh(returnStdout: true, script: "aws ecr describe-images --repository-name $ECR_REPOSITORY --region $AWS_REGION --query 'sort_by(imageDetails,& imagePushedAt)[-1].imageTags[0]' --output text").trim()
-                        def taskDefJson = sh(returnStdout: true, script: "aws ecs describe-task-definition --task-definition $ECS_TASK_DEFINITION --region $AWS_REGION")
-                        def taskDef = readJSON(text: taskDefJson)
-                        taskDef.containerDefinitions.each { it.image = "$ECR_REGISTRY/$ECR_REPOSITORY:$latestImage" }
-                        echo "Updated Task Definition: ${taskDef}"
-                        def newTaskDefJson = sh(returnStdout: true, script: "cat /var/lib/jenkins/workspace/web-app/newTaskDef.json | jq -r . | sed \"s/'/\\\"/g\"").trim()
-                        echo "${newTaskDefJson}"
-                        sh "aws ecs register-task-definition --cli-input-json file://newTaskDef.json --region $AWS_REGION"
+                        def TASK_DEFINITION = sh(returnStdout: true, script: "aws ecs describe-task-definition --task-definition $ECS_TASK_DEFINITION --region $AWS_REGION")
+                        def NEW_TASK_DEFINTIION=$(echo $TASK_DEFINITION | jq --arg IMAGE "$NEW_IMAGE" '.taskDefinition | .containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn) | del(.revision) | del(.status) | del(.requiresAttributes) | del(.compatibilities)')
+                        sh "aws ecs register-task-definition --region $AWS_REGION --cli-input-json ${NEW_TASK_DEFINITION}"
                         sh "aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --task-definition $ECS_TASK_DEFINITION --region $AWS_REGION"
-                        }
+                    }
                  }
              }
         }
