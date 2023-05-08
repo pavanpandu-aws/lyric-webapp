@@ -48,12 +48,7 @@ pipeline {
                         def taskDef = readJSON(text: taskDefJson)
                         taskDef.containerDefinitions.each { it.image = "$ECR_REGISTRY/$ECR_REPOSITORY:$latestImage" }
                         echo "Updated Task Definition: ${taskDef}"
-                       def newTaskDefJson = writeJSON(json: taskDef, file: 'newTaskDef.json', pretty: 1)
-                        if (fileExists('newTaskDef.json')) {
-                            echo 'Task definition file written successfully'
-                        } else {
-                            error 'Failed to write task definition file'
-                        }
+                        def newTaskDefJson = readFile('/var/lib/jenkins/workspace/web-app/newTaskDef.json')
                         echo "${newTaskDefJson}"
                         sh "aws ecs register-task-definition --cli-input-json \"${newTaskDefJson}\" --region $AWS_REGION"
                         sh "aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --task-definition $ECS_TASK_DEFINITION --region $AWS_REGION"
