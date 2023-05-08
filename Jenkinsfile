@@ -51,7 +51,6 @@ pipeline {
                         sh "aws ecs register-task-definition --cli-input-json '${newTaskDefJson}' --region $AWS_REGION"
                         sh "aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --task-definition $ECS_TASK_DEFINITION --region $AWS_REGION"
                     }
-
                  }
              }
         }
